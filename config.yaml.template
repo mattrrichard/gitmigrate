@@ -1,0 +1,9 @@
+bitbucket:
+  account: targetaccount # the account to create repos in
+  user: username         # used for authentication
+  password: password     # can be an "app password" or the user's actual password
+
+teamcity:
+  user: user
+  password: password
+  url: http://teamcity:8111
