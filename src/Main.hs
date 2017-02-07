@@ -18,17 +18,16 @@ data Config =
 
 instance FromJSON Config
 
-loadConfig :: FilePath -> IO (Either String Config)
-loadConfig path =
-    Y.decodeEither <$> BS.readFile path
+loadConfig :: FilePath -> IO Config
+loadConfig path = do
+  e <- Y.decodeEither <$> BS.readFile path
+  case e of
+    Left err -> fail $ "Could not load config: " ++ err
+    Right cfg -> return cfg
 
 main :: IO ()
 main = do
-  config <- loadConfig "config.yaml" >>= \e ->
-    case e of
-      Left err -> fail $ "Could not load config: " ++ err
-      Right cfg -> return cfg
+  config <- loadConfig "config.yaml"
 
-  slugs <- BB.eval (BB.getRepoSlugs) (bitbucket config)
-  print slugs
-
+  slugs <- BB.eval BB.getRepoSlugs $ bitbucket config
+  print $ slugs
