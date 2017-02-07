@@ -1,18 +1,16 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Teamcity where
 
-import           Data.Aeson (FromJSON (..), Value, withObject, (.:))
+import           Data.Aeson   (FromJSON)
+import           GHC.Generics
 
 data Config =
   Config { user     :: String
          , password :: String
-         , url  :: String
+         , url      :: String
          }
-  deriving (Read, Show, Eq)
+  deriving (Read, Show, Eq, Generic)
 
-instance FromJSON Config where
-  parseJSON = withObject "object" $ \o ->
-    Config <$> o .: "user"
-           <*> o .: "password"
-           <*> o .: "url"
+instance FromJSON Config

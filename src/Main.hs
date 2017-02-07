@@ -1,23 +1,22 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import qualified Bitbucket       as BB
-import           Data.Aeson      (FromJSON (..), withObject, (.:))
+import           Data.Aeson      (FromJSON)
 import qualified Data.ByteString as BS
 import qualified Data.Yaml       as Y
+import           GHC.Generics
 import qualified Teamcity        as TC
 
 data Config =
   Config { bitbucket :: BB.Config
          , teamcity  :: TC.Config
          }
-  deriving (Read, Show, Eq)
+  deriving (Read, Show, Eq, Generic)
 
-instance FromJSON Config where
-  parseJSON = withObject "object" $ \o ->
-    Config <$> o .: "bitbucket"
-           <*> o .: "teamcity"
+instance FromJSON Config
 
 loadConfig :: FilePath -> IO (Either String Config)
 loadConfig path =

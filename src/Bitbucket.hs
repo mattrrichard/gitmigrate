@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
@@ -10,6 +11,7 @@ import           Data.Aeson                 (FromJSON (..), withObject, (.:))
 import qualified Data.Aeson.Lens            as A
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.Text                  as TS
+import           GHC.Generics
 import qualified Network.Wreq               as W
 
 data Config =
@@ -17,19 +19,12 @@ data Config =
          , password :: String
          , account  :: String
          }
-  deriving (Read, Show, Eq)
+  deriving (Generic, Read, Show, Eq)
 
-instance FromJSON Config where
-  parseJSON = withObject "object" $ \o ->
-    Config <$> o .: "user"
-           <*> o .: "password"
-           <*> o .: "account"
-
-baseUrl :: String
-baseUrl = "https://api.bitbucket.org/2.0/repositories/"
-
+instance FromJSON Config
 
 type Bitbucket a = ReaderT Config IO a
+
 
 eval = runReaderT
 
