@@ -44,17 +44,36 @@ baseUrl = "https://api.bitbucket.org/2.0/repositories"
 getRepoSlugs :: Bitbucket [Text]
 getRepoSlugs = do
 
-  opts <- W.defaults & auth
+  opts <- W.defaults
+          & W.param "pagelen" .~ ["100"]
+          & auth
 
   account <- asks account
 
-  resp <- lift $ W.getWith opts (baseUrl ++ account)
+  let firstPage = makeUrl [account]
 
-  return $ resp ^. W.responseBody . values ^.. traverse . slug
+  fmap mconcat $ unfoldrM firstPage $ \url -> lift $ do
+    resp <- W.getWith opts url
+
+    let slugs = resp ^. W.responseBody . values ^.. traverse . slug
+    let nextStart = resp ^? W.responseBody . nextPage
+
+    return (slugs, fmap TS.unpack nextStart)
 
   where
-    values = A.key "values" . A._Array
-    slug = A.key "slug" . A._String
+    values = key "values" . AL._Array
+    slug = key "slug" . AL._String
+    nextPage = key "next" . AL._String
+
+
+unfoldrM :: Monad m => a -> (a -> m (b, Maybe a)) -> m [b]
+unfoldrM a m = do
+    (x, ma) <- m a
+    case ma of
+      Just a' -> (:) <$> return x <*> unfoldrM a' m
+      Nothing -> return [x]
+
+
 createRepo :: Repository -> Bitbucket ()
 createRepo repo@(Repository _ slug) = do
   account <- asks account
