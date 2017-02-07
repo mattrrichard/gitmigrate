@@ -23,6 +23,7 @@ executable gitmigrate
                      , transformers
                      , aeson
                      , yaml
+                     , process
 
   other-modules:     Bitbucket
                    , Teamcity

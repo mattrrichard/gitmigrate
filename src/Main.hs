@@ -3,12 +3,17 @@
 
 module Main where
 
-import qualified Bitbucket       as BB
-import           Data.Aeson      (FromJSON)
-import qualified Data.ByteString as BS
-import qualified Data.Yaml       as Y
+import qualified Bitbucket          as BB
+import           Data.Aeson         (FromJSON)
+import qualified Data.ByteString    as BS
+import           Data.List          (isInfixOf)
+import qualified Data.Yaml          as Y
 import           GHC.Generics
-import qualified Teamcity        as TC
+import           System.Environment (getArgs)
+import           System.Exit        (ExitCode (..))
+import           System.Process
+import qualified Teamcity           as TC
+import qualified Data.Text                  as TS
 
 data Config =
   Config { bitbucket :: BB.Config
@@ -25,7 +30,18 @@ loadConfig path = do
     Left err -> fail $ "Could not load config: " ++ err
     Right cfg -> return cfg
 
-main :: IO ()
+
+getOrigin :: FilePath -> IO (Maybe String)
+getOrigin path = do
+  let cmd = (proc "git" ["remote", "get-url", "origin"]) { cwd = Just path }
+
+  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
+
+  return $ case exitCode of
+    ExitSuccess -> Just out
+    _ -> Nothing
+
+
 main = do
   config <- loadConfig "config.yaml"
 
