@@ -41,9 +41,44 @@ getOrigin path = do
     ExitSuccess -> Just out
     _ -> Nothing
 
+--TODO: These need serious refactoring
 
+setOrigin :: FilePath -> String -> IO (Maybe String)
+setOrigin path url = do
+  let cmd = (proc "git" ["remote", "set-url", "origin", url]) { cwd = Just path }
+
+  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
+  return $ case exitCode of
+    ExitSuccess -> Just out
+    _ -> Nothing
+
+
+push :: FilePath -> IO (Maybe String)
+push path = do
+  let cmd = (proc "git" ["push", "origin", "master"]) { cwd = Just path }
+
+  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
+  return $ case exitCode of
+    ExitSuccess -> Just out
+    _ -> Nothing
+
+-- main :: IO ()
 main = do
-  config <- loadConfig "config.yaml"
+  config <- loadConfig "/Users/matt/Documents/Programming/haskell/gitmigrate/config.yaml"
 
-  slugs <- BB.eval BB.getRepoSlugs $ bitbucket config
-  print $ slugs
+  -- slugs <- BB.eval BB.getRepoSlugs $ bitbucket config
+  -- print $ slugs
+
+  -- origin <- getOrigin "."
+
+  -- print $ maybe False (isInfixOf "bitbucket") origin
+
+  -- (r : roots) <- TC.eval TC.getVcsRoots (teamcity config)
+  -- r' <- TC.eval (TC.getVcsUrl (TS.unpack r)) (teamcity config)
+  -- print r'
+  -- roots <- TC.eval TC.getAll (teamcity config)
+
+  -- mapM print roots
+  push "." >>= print
+
+  return ()
