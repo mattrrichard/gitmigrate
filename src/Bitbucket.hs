@@ -1,15 +1,18 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
 
 module Bitbucket where
 
-import           Control.Lens               ((&), (?~), (^.), (^..), (^?))
+import           Control.Lens               ((&), (.~), (?~), (^.), (^..), (^?))
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Reader
-import           Data.Aeson                 (FromJSON (..), withObject, (.:))
-import qualified Data.Aeson.Lens            as A
+import           Data.Aeson                 (FromJSON, ToJSON (..), object,
+                                             (.=))
+import           Data.Aeson.Lens            (key)
+import qualified Data.Aeson.Lens            as AL
 import qualified Data.ByteString.Char8      as BS
+import           Data.List                  (intersperse)
+import           Data.Text                  (Text)
 import qualified Data.Text                  as TS
 import           GHC.Generics
 import qualified Network.Wreq               as W
@@ -35,9 +38,10 @@ auth opts = do
 
   return $ opts & W.auth ?~ W.basicAuth (BS.pack u) (BS.pack p)
 
-type Slug = TS.Text
+baseUrl :: String
+baseUrl = "https://api.bitbucket.org/2.0/repositories"
 
-getRepoSlugs :: Bitbucket [Slug]
+getRepoSlugs :: Bitbucket [Text]
 getRepoSlugs = do
 
   opts <- W.defaults & auth
@@ -51,3 +55,32 @@ getRepoSlugs = do
   where
     values = A.key "values" . A._Array
     slug = A.key "slug" . A._String
+createRepo :: Repository -> Bitbucket ()
+createRepo repo@(Repository _ slug) = do
+  account <- asks account
+  opts <- W.defaults
+          & W.header "Content-type" .~ ["application/json"]
+          & auth
+
+  resp <- lift $ W.postWith opts (makeUrl [account, slug]) (toJSON repo)
+
+  return ()
+
+
+data Repository =
+  Repository { repoName :: String
+             , repoSlug :: String
+             }
+
+
+instance ToJSON Repository where
+  toJSON (Repository name _) =
+    object [ "scm" .= text "git"
+           , "is_private" .= True
+           , "name" .= name
+           , "has_issues" .= False
+           ]
+    where text x = x :: Text
+
+
+makeUrl xs = mconcat $ intersperse "/" (baseUrl : xs)
