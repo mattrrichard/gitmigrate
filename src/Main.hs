@@ -64,7 +64,7 @@ push path = do
 
 -- main :: IO ()
 main = do
-  config <- loadConfig "/Users/matt/Documents/Programming/haskell/gitmigrate/config.yaml"
+  config <- loadConfig "config.yaml"
 
   -- slugs <- BB.eval BB.getRepoSlugs $ bitbucket config
   -- print $ slugs
