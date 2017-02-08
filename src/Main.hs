@@ -62,6 +62,7 @@ push path = do
     ExitSuccess -> Just out
     _ -> Nothing
 
+
 -- main :: IO ()
 main = do
   config <- loadConfig "config.yaml"
@@ -79,6 +80,8 @@ main = do
   -- roots <- TC.eval TC.getAll (teamcity config)
 
   -- mapM print roots
-  push "." >>= print
+  -- push "." >>= print
+  -- print =<< TC.eval TC.getAll (teamcity config)
+  print =<< BB.eval (BB.createRepo (BB.Repository "test" "test")) (bitbucket config)
 
   return ()
