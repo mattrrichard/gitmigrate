@@ -4,6 +4,7 @@
 module Main where
 
 import qualified Bitbucket          as BB
+
 import           Data.Aeson         (FromJSON)
 import qualified Data.ByteString    as BS
 import           Data.List          (isInfixOf)
@@ -12,8 +13,12 @@ import           GHC.Generics
 import           System.Environment (getArgs)
 import           System.Exit        (ExitCode (..))
 import           System.Process
-import qualified Teamcity           as TC
+-- import qualified Teamcity           as TC
 import qualified Data.Text                  as TS
+import Control.Monad
+import Data.Maybe
+import qualified TC as TCC
+import qualified WebApi as WA
 
 data Config =
   Config { bitbucket :: BB.Config
@@ -63,7 +68,7 @@ push path = do
     _ -> Nothing
 
 
--- main :: IO ()
+main :: IO ()
 main = do
   config <- loadConfig "config.yaml"
 
@@ -82,6 +87,9 @@ main = do
   -- mapM print roots
   -- push "." >>= print
   -- print =<< TC.eval TC.getAll (teamcity config)
-  print =<< BB.eval (BB.createRepo (BB.Repository "test" "test")) (bitbucket config)
+  -- print =<< BB.eval (BB.createRepo (BB.Repository "test" "test")) (bitbucket config)
+
+  roots <- WA.eval TCC.getAll (teamcity config)
+  mapM print roots
 
   return ()
