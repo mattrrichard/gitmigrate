@@ -28,3 +28,4 @@ executable gitmigrate
 
   other-modules:     Bitbucket
                    , Teamcity
+                   , Git

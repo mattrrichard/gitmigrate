@@ -3,22 +3,21 @@
 
 module Main where
 
-import qualified Bitbucket          as BB
+import qualified Bitbucket            as BB
 
-import           Data.Aeson         (FromJSON)
-import qualified Data.ByteString    as BS
-import           Data.List          (isInfixOf)
-import qualified Data.Yaml          as Y
+import           Control.Monad
+import           Control.Monad.Reader
+import           Data.Aeson           (FromJSON)
+import qualified Data.ByteString      as BS
+import           Data.List            (isInfixOf)
+import           Data.Maybe
+import qualified Data.Text            as T
+import qualified Data.Yaml            as Y
 import           GHC.Generics
-import           System.Environment (getArgs)
-import           System.Exit        (ExitCode (..))
-import           System.Process
--- import qualified Teamcity           as TC
-import qualified Data.Text                  as TS
-import Control.Monad
-import Data.Maybe
-import qualified TC as TCC
-import qualified WebApi as WA
+import qualified Git                  as G
+import           System.Environment   (getArgs)
+import qualified Teamcity             as TC
+import qualified WebApi               as WA
 
 data Config =
   Config { bitbucket :: BB.Config
@@ -36,36 +35,14 @@ loadConfig path = do
     Right cfg -> return cfg
 
 
-getOrigin :: FilePath -> IO (Maybe String)
-getOrigin path = do
-  let cmd = (proc "git" ["remote", "get-url", "origin"]) { cwd = Just path }
-
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
-
-  return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
-
---TODO: These need serious refactoring
-
-setOrigin :: FilePath -> String -> IO (Maybe String)
-setOrigin path url = do
-  let cmd = (proc "git" ["remote", "set-url", "origin", url]) { cwd = Just path }
-
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
-  return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
 
 
-push :: FilePath -> IO (Maybe String)
-push path = do
-  let cmd = (proc "git" ["push", "origin", "master"]) { cwd = Just path }
 
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
-  return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
+
+
+
+
+
 
 
 main :: IO ()
@@ -89,7 +66,5 @@ main = do
   -- print =<< TC.eval TC.getAll (teamcity config)
   -- print =<< BB.eval (BB.createRepo (BB.Repository "test" "test")) (bitbucket config)
 
-  roots <- WA.eval TCC.getAll (teamcity config)
-  mapM print roots
 
   return ()
