@@ -1,7 +1,16 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bitbucket where
+module Bitbucket
+  ( Config
+  , Bitbucket
+  , VConfig
+  , makeConfig
+  , getRepoSlugs
+  , getDeployKeys
+  , addDeployKey
+  , createRepo
+  ) where
 
 import           Control.Lens          (each, (&), (^.), (^..), (^?), (.~), (?~))
 import           Control.Monad.Reader
@@ -14,17 +23,25 @@ import qualified Network.Wreq          as W
 import           WebApi
 
 data Config =
-  Config { user     :: String
-         , password :: String
-         , account  :: String
+  Config { user          :: String
+         , password      :: String
+         , account       :: String
+         , deploymentKey :: String
          }
   deriving (Generic, Read, Show, Eq)
 
 instance FromJSON Config
 
+data VConfig = V1 Config | V2 Config
 
+cfg (V1 c) = c
+cfg (V2 c) = c
 
+runV1 :: Bitbucket a -> Bitbucket a
+runV1 = local $ V1 . cfg
 
+makeConfig :: Config -> VConfig
+makeConfig = V2
 
 instance ApiConfig VConfig where
   baseUrl (V1 c) = "https://api.bitbucket.org/1.0/repositories/" ++ account c
@@ -68,10 +85,24 @@ unfoldrM a m = do
       Nothing -> return [x]
 
 
+getDeployKeys :: String -> Bitbucket [T.Text]
+getDeployKeys slug =
+  runV1 $ do
+    r <- get [slug, "deploy-keys"]
+    return $ r ^. W.responseBody . _Array ^.. each . key "key" . _String
 
 
+addDeployKey :: String -> String -> String -> Bitbucket ()
+addDeployKey slug label key = do
+  runV1 $ do
+    let postData = object
+                   [ "key" .= key
+                   , "label" .= label
+                   ]
 
+    post [slug, "deploy-keys"] postData
 
+  return ()
 
 
 createRepo :: String -> Bitbucket (Maybe T.Text)
@@ -93,6 +124,4 @@ createRepo slug = do
   let hrefs = cloneLinks ^.. traverse . key "href" . _String
 
   return $ lookup "ssh" (zip names hrefs)
-
-
 
