@@ -21,6 +21,7 @@ executable gitmigrate
                      , text
                      , network-uri
                      , transformers
+                     , mtl
                      , aeson
                      , yaml
                      , process

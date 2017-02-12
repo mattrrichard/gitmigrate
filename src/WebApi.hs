@@ -1,28 +1,44 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
-module WebApi where
+module WebApi
+  ( ApiConfig(..)
+  , ApiT
+  , Api
+  , runApiSession
+  , runApiWithouSession
+  , readConfig
+  , addAuthHeader
+  , get
+  , getAnonymous
+  , getWith
+  , getWithAnonymous
+  , rawGet
+  , post
+  , postAnonymous
+  , postWith
+  , postWithAnonymous
+  , rawPost
+  , makeUrl
+  , urlConcat
+  , acceptJson
+  , acceptPlain
+  , contentJson
+  ) where
 
-import           Control.Lens               ((&), (.~), (?~), (^.), (^..), (^?), lens, Lens', view, set)
-import qualified Control.Lens               as L
-import           Control.Lens.Reified       (ReifiedGetter(..), runGetter)
-import           Control.Monad.Trans.Class
-import           Control.Monad.Trans.Reader
-import           Data.Aeson                 (FromJSON, ToJSON (..), object,
-                                             (.=))
-import           Data.Aeson.Lens            (key)
-import qualified Data.Aeson.Lens            as AL
-import qualified Data.ByteString.Char8      as BS
-import qualified Data.ByteString.Lazy       as BL
-import           Data.List                  (intersperse)
-import           Data.Text                  (Text)
-import qualified Data.Text                  as TS
+import           Control.Lens          ((&), (.~), (?~), (^.), (^..), (^?))
+import           Control.Monad.Reader
+import           Data.Aeson            (ToJSON (..))
+import qualified Data.Aeson.Lens       as AL
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy  as BL
+import           Data.List             (intersperse)
 import           GHC.Generics
-import qualified Network.Wreq.Session as S
-import qualified Network.Wreq as W
-import           Network.Wreq.Types (Postable)
+import qualified Network.Wreq          as W
+import qualified Network.Wreq.Session  as S
 
 
 class ApiConfig c where
@@ -31,70 +47,157 @@ class ApiConfig c where
   apiPassword :: c -> String
 
 
-newtype Api c a = Api { runApi :: ReaderT (Maybe S.Session, c) IO a }
+newtype ApiT c m a = Api { runApi :: ReaderT (Maybe S.Session, c) m a }
   deriving (Functor, Applicative, Monad)
 
-evalWithSession :: Api c a -> c -> IO a
-evalWithSession a c = S.withSession $ \s ->
+instance Monad m => MonadReader c (ApiT c m) where
+  ask = readConfig
+  local f (Api (ReaderT r)) =
+    Api $ ReaderT $ \(s, c) -> r (s, f c)
+
+type Api c = ApiT c IO
+
+
+runApiSession :: Api c a -> c -> IO a
+runApiSession a c = S.withSession $ \s ->
   runReaderT (runApi a) (Just s, c)
 
-eval :: Api c a -> c -> IO a
-eval a c = runReaderT (runApi a) (Nothing, c)
 
-config :: Api c c
-config = Api $ asks snd
+runApiWithouSession :: Api c a -> c -> IO a
+runApiWithouSession a c = runReaderT (runApi a) (Nothing, c)
 
+
+readConfig :: Monad m => ApiT c m c
+readConfig = Api $ asks snd
+
+
+makeUrl :: String -> UrlParts -> String
+makeUrl base = urlConcat . (base : )
+
+
+urlConcat :: UrlParts -> String
+urlConcat = mconcat . intersperse "/"
+
+
+acceptJson :: W.Options -> W.Options
 acceptJson =
   W.header "accept" .~ ["application/json"]
 
+
+contentJson :: W.Options -> W.Options
 contentJson =
   W.header "Content-type" .~ ["application/json"]
 
+
+acceptPlain :: W.Options -> W.Options
 acceptPlain =
   W.header "accept" .~ ["text/plain"]
 
-defaultOpts :: ApiConfig c => c -> W.Options -> W.Options
-defaultOpts c opts =
-  opts & W.auth ?~ W.basicAuth (BS.pack $ apiUser c) (BS.pack $ apiPassword c)
 
 type UrlParts = [String]
 
+type ByteStringResponse = W.Response BL.ByteString
 
-getWith :: ApiConfig c => W.Options -> UrlParts -> Api c (W.Response BL.ByteString)
-getWith opts parts = Api $ do
-  (sess, c) <- ask
+addAuthHeader :: ApiConfig c => W.Options -> Api c W.Options
+addAuthHeader opts =
+  authOpts <$> readConfig
+  where
+    authOpts c =
+      opts & W.auth ?~ W.basicAuth (BS.pack $ apiUser c) (BS.pack $ apiPassword c)
 
+
+getWith :: ApiConfig c => W.Options -> UrlParts -> Api c ByteStringResponse
+getWith opts parts =
+  addAuthHeader opts >>= getHelper parts
+
+
+getHelper :: ApiConfig c => UrlParts -> W.Options -> Api c (ByteStringResponse)
+getHelper parts opts = do
+  c <- readConfig
   let url = makeUrl (baseUrl c) parts
-  let opts' = defaultOpts c opts
 
-  lift $ usingOptionalSession sess W.getWith S.getWith opts' url
+  rawGet url opts
 
-get :: ApiConfig c => UrlParts -> Api c (W.Response BL.ByteString)
+rawGet :: ApiConfig c => String -> W.Options -> Api c ByteStringResponse
+rawGet url opts = Api $ do
+  sess <- asks fst
+  lift $ get sess opts url
+  where
+    get = usingOptionalSession W.getWith S.getWith
+
+
+get :: ApiConfig c => UrlParts -> Api c (ByteStringResponse)
 get = getWith W.defaults
 
 
-postWith :: (ApiConfig c, Postable a) => W.Options -> UrlParts -> a -> Api c (W.Response BL.ByteString)
-postWith opts parts postData = Api $ do
-  (sess, c) <- ask
+getAnonymous :: ApiConfig c => UrlParts -> Api c ByteStringResponse
+getAnonymous = flip getHelper W.defaults
 
+
+getWithAnonymous :: ApiConfig c => W.Options -> UrlParts -> Api c ByteStringResponse
+getWithAnonymous = flip getHelper
+
+
+rawPost ::
+  (ApiConfig c, ToJSON a)
+  => String
+  -> W.Options
+  -> a
+  -> Api c ByteStringResponse
+rawPost url opts postData = Api $ do
+  sess <- asks fst
+  lift $ post sess opts url (toJSON postData)
+  where
+    post = usingOptionalSession W.postWith S.postWith
+
+
+postHelper ::
+  (ApiConfig c, ToJSON a)
+  => UrlParts
+  -> a
+  -> W.Options
+  -> Api c (ByteStringResponse)
+postHelper parts postData opts  = do
+  c <- readConfig
   let url = makeUrl (baseUrl c) parts
-  let opts' = defaultOpts c opts
+  rawPost url (contentJson opts) postData
 
-  lift $ maybe
-    (W.postWith opts' url postData)
-    (\s -> S.postWith opts' s url postData)
-    sess
 
-  lift $ usingOptionalSession sess W.postWith S.postWith opts' url postData
+postWith ::
+  (ApiConfig c, ToJSON a)
+  => W.Options
+  -> UrlParts
+  -> a
+  -> Api c (ByteStringResponse)
+postWith opts parts postData =
+  addAuthHeader opts >>= postHelper parts postData
 
-post :: (ApiConfig c, Postable a) => UrlParts -> a -> Api c (W.Response BL.ByteString)
+
+postWithAnonymous ::
+  (ApiConfig c, ToJSON a)
+  => W.Options
+  -> UrlParts
+  -> a
+  -> Api c (ByteStringResponse)
+postWithAnonymous opts parts postData =
+  postHelper parts postData opts
+
+
+post ::
+  (ApiConfig c, ToJSON a)
+  => UrlParts
+  -> a
+  -> Api c (ByteStringResponse)
 post = postWith W.defaults
 
 
-usingOptionalSession sess withoutSess withSess =
-  maybe withoutSess (flip withSess) sess
+postAnonymous ::
+  (ApiConfig c, ToJSON a)
+  => UrlParts
+  -> a
+  -> Api c (ByteStringResponse)
+postAnonymous = postWith W.defaults
 
 
-makeUrl base = urlConcat . (base : )
-
-urlConcat = mconcat . intersperse "/"
+usingOptionalSession withoutSess withSess =
+  maybe withoutSess (flip withSess)
