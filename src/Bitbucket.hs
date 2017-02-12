@@ -117,11 +117,14 @@ createRepo slug = do
 
   resp <- postWith opts [slug] postData
 
-  -- this is awful, but it works
-  -- awful doesn't cover it.  holy shit
-  let cloneLinks = resp ^. W.responseBody . key "links" . key "clone" . _Array
-  let names = cloneLinks ^.. traverse . key "name" . _String
-  let hrefs = cloneLinks ^.. traverse . key "href" . _String
+  return $ resp ^. W.responseBody . links . clones ^? onlyssh . href
 
-  return $ lookup "ssh" (zip names hrefs)
+  where links = key "links"
+        clones = key "clone" . _Array
+        name = key "name" . _String
+        href = key "href" . _String
+        onlyssh = filterF $ \x -> x ^. name == "ssh"
 
+filterF pred f = traverse step
+  where step x | pred x = f x
+               | otherwise = pure x
