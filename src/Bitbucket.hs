@@ -26,15 +26,13 @@ instance FromJSON Config
 
 
 
-instance ApiConfig VConfig where
-  baseUrl (V1 c) = "https://api.bitbucket.org/1.0/repositories/" ++ account c
-  baseUrl (V2 c) = "https://api.bitbucket.org/2.0/repositories/" ++ account c
-
-  apiUser = user . cfg
-  apiPassword = password . cfg
+instance ApiConfig Config where
+  baseUrl c = "https://api.bitbucket.org/2.0/repositories/" ++ account c
+  apiUser = user
+  apiPassword = password
 
 
-type Bitbucket = Api VConfig
+type Bitbucket = Api Config
 
 
 getRepoSlugs :: Bitbucket [T.Text]
