@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -36,9 +38,16 @@ loadConfig path = do
 
 
 
+type Run = ReaderT Config IO
 
+class Runnable r where
+  run :: r a -> ReaderT Config IO a
 
+instance Runnable BB.Bitbucket where
+  run action = ReaderT $ WA.runApiSession action . BB.makeConfig . bitbucket
 
+instance Runnable TC.TeamCity where
+  run action = ReaderT $ WA.runApiSession action . teamcity
 
 
 
