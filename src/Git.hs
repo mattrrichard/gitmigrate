@@ -1,35 +1,29 @@
 module Git where
 
-import           System.Exit        (ExitCode (..))
+import           Control.Monad.Except
+import           System.Exit          (ExitCode (..))
 import           System.Process
 
--- TODO: these are all nearly identical. please fix
-
-getOrigin :: FilePath -> IO (Maybe String)
-getOrigin path = do
-  let cmd = (proc "git" ["remote", "get-url", "origin"]) { cwd = Just path }
-
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
+runGit :: MonadIO m => [String] -> FilePath -> ExceptT String m String
+runGit args path = ExceptT $ do
+  let cmd = (proc "git" args) { cwd = Just path }
+  (exitCode, out, err) <- liftIO $ readCreateProcessWithExitCode cmd ""
 
   return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
+    ExitSuccess -> Right out
+    _ -> Left err
 
-setOrigin :: FilePath -> String -> IO (Maybe String)
-setOrigin path url = do
-  let cmd = (proc "git" ["remote", "set-url", "origin", url]) { cwd = Just path }
+getOrigin :: MonadIO m => FilePath -> ExceptT String m String
+getOrigin = fmap (head . lines) . runGit ["remote", "get-url", "origin"]
 
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
-  return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
+setOrigin :: MonadIO m => FilePath -> String -> ExceptT String m String
+setOrigin path url = runGit ["remote", "set-url", "origin", url] path
 
+push :: MonadIO m => FilePath -> ExceptT String m String
+push = runGit ["push", "--mirror", "origin"]
 
-push :: FilePath -> IO (Maybe String)
-push path = do
-  let cmd = (proc "git" ["push", "origin", "master"]) { cwd = Just path }
+clone :: MonadIO m => String -> FilePath -> ExceptT String m String
+clone url = runGit ["clone", "--bare", url]
 
-  (exitCode, out, err) <- readCreateProcessWithExitCode cmd ""
-  return $ case exitCode of
-    ExitSuccess -> Just out
-    _ -> Nothing
+pull :: MonadIO m => FilePath -> ExceptT String m String
+pull = runGit ["pull", "--all"]
