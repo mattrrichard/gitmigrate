@@ -24,11 +24,14 @@ module WebApi
   , postWith
   , postWithAnonymous
   , rawPost
+  , put
+  , putWith
   , makeUrl
   , urlConcat
   , acceptJson
   , acceptPlain
   , contentJson
+  , contentPlain
   ) where
 
 import           Control.Lens          (Lens', (&), (.~), (?~), (^.), (^..),
@@ -198,6 +201,34 @@ postAnonymous ::
   -> a
   -> Api c ByteStringResponse
 postAnonymous = postWith W.defaults
+
+rawPut ::
+  (ApiConfig c, W.Putable a)
+  => String
+  -> W.Options
+  -> a
+  -> Api c ByteStringResponse
+rawPut url opts putData = Api $ do
+  sess <- asks fst
+  lift $ put sess opts url putData
+  where
+    put = usingOptionalSession W.putWith S.putWith
+
+putHelper ::
+  (ApiConfig c, W.Putable a)
+  => UrlParts
+  -> a
+  -> W.Options
+  -> Api c ByteStringResponse
+putHelper parts postData opts  = do
+  c <- readConfig
+  let url = makeUrl (baseUrl c) parts
+  rawPut url (defaultJsonContent opts) postData
+
+putWith opts parts putData =
+  addAuthHeader opts >>= putHelper parts putData
+
+put parts postData = putWith W.defaults
 
 
 usingOptionalSession withoutSess withSess =
