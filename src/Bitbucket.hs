@@ -104,6 +104,15 @@ addDeployKey slug label key = do
 
   return ()
 
+nameFromSlug = T.pack . tail . scanl go '.'
+  where go p x | delim p || space p = toUpper x
+               | space x = ' '
+               | otherwise = x
+        delim '.' = True
+        delim  _  = False
+        space '-' = True
+        space '_' = True
+        space  _  = False
 
 createRepo :: String -> Bitbucket (Maybe T.Text)
 createRepo slug = do
@@ -111,7 +120,7 @@ createRepo slug = do
 
   let postData = object [ "scm" .= ("git" :: T.Text)
                         , "is_private" .= True
-                        , "name" .= slug
+                        , "name" .= nameFromSlug slug
                         , "has_issues" .= False
                         ]
 
