@@ -83,20 +83,17 @@ urlConcat :: UrlParts -> String
 urlConcat = mconcat . intersperse "/"
 
 
-acceptJson :: W.Options -> W.Options
-acceptJson =
-  W.header "accept" .~ ["application/json"]
+acceptJson = W.header "accept" .~ ["application/json"]
+acceptPlain = W.header "accept" .~ ["text/plain"]
+contentJson = W.header "Content-type" .~ ["application/json"]
+contentPlain = W.header "Content-type" .~ ["text/plain"]
 
+{-| sets the content type to application/json if it isn't already set to something else -}
+defaultJsonContent = W.header "Content-type" .~? ["application/json"]
 
-contentJson :: W.Options -> W.Options
-contentJson =
-  W.header "Content-type" .~ ["application/json"]
-
-
-acceptPlain :: W.Options -> W.Options
-acceptPlain =
-  W.header "accept" .~ ["text/plain"]
-
+(.~?) :: Foldable f => Lens' s (f a) -> f a -> s-> s
+(.~?) l v x | null (x ^. l) = x & l .~ v
+            | otherwise = x
 
 type UrlParts = [String]
 
