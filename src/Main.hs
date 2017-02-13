@@ -135,7 +135,7 @@ migrateDirectory p rootsCache = do
     lift . run $ BB.addDeployKeyFromConfig name
     report "Added deploy key"
 
-    G.setOrigin p (T.unpack newRepo) <!> GitError SetOrigin p
+    G.setOrigin (T.unpack newRepo) p <!> GitError SetOrigin p
 
     report "Pushing..."
     G.push p <!> GitError Push p

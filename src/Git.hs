@@ -16,8 +16,8 @@ runGit args path = ExceptT $ do
 getOrigin :: MonadIO m => FilePath -> ExceptT String m String
 getOrigin = fmap (head . lines) . runGit ["remote", "get-url", "origin"]
 
-setOrigin :: MonadIO m => FilePath -> String -> ExceptT String m String
-setOrigin path url = runGit ["remote", "set-url", "origin", url] path
+setOrigin :: MonadIO m => String -> FilePath -> ExceptT String m String
+setOrigin url = runGit ["remote", "set-url", "origin", url]
 
 push :: MonadIO m => FilePath -> ExceptT String m String
 push = runGit ["push", "--mirror", "origin"]
