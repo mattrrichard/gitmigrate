@@ -54,4 +54,4 @@ getAll = do
 
   forM roots $ \r -> do
     u <- getVcsUrl $ T.unpack r
-    return (r, u)
+    return (T.toLower u, r)
