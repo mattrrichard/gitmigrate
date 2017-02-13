@@ -12,14 +12,18 @@ module Bitbucket
   , createRepo
   ) where
 
-import           Control.Lens          (each, (&), (^.), (^..), (^?), (.~), (?~))
+import           GHC.Generics
+
+import           Control.Lens          (each, (&), (.~), (?~), (^.), (^..),
+                                        (^?), folded, filtered)
 import           Control.Monad.Reader
 import           Data.Aeson            (FromJSON, object, (.=))
 import           Data.Aeson.Lens       (key, _Array, _String)
 import qualified Data.ByteString.Char8 as BS
+import           Data.Char             (toUpper, toLower)
 import qualified Data.Text             as T
-import           GHC.Generics
 import qualified Network.Wreq          as W
+
 import           WebApi
 
 data Config =
@@ -100,7 +104,7 @@ addDeployKey slug label key = do
                    , "label" .= label
                    ]
 
-    post [slug, "deploy-keys"] postData
+    post [toLower <$> slug, "deploy-keys"] postData
 
   return ()
 
@@ -124,7 +128,7 @@ createRepo slug = do
                         , "has_issues" .= False
                         ]
 
-  resp <- postWith opts [slug] postData
+  resp <- postWith opts [toLower <$> slug] postData
 
   return $ resp ^. W.responseBody . links . clones ^? onlyssh . href
 
