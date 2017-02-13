@@ -9,6 +9,7 @@ module Bitbucket
   , getRepoSlugs
   , getDeployKeys
   , addDeployKey
+  , addDeployKeyFromConfig
   , createRepo
   ) where
 
@@ -94,6 +95,12 @@ getDeployKeys slug =
   runV1 $ do
     r <- get [slug, "deploy-keys"]
     return $ r ^. W.responseBody . _Array ^.. each . key "key" . _String
+
+
+addDeployKeyFromConfig :: String -> Bitbucket ()
+addDeployKeyFromConfig slug = do
+  key <- asks $ deploymentKey . cfg
+  addDeployKey slug "teamcity" key
 
 
 addDeployKey :: String -> String -> String -> Bitbucket ()
