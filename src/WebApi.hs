@@ -131,11 +131,8 @@ get = getWith W.defaults
 
 
 rawPost ::
-  (ApiConfig c, W.Postable a)
-  => String
-  -> W.Options
-  -> a
-  -> Api c ByteStringResponse
+  (ApiConfig c, W.Postable a) =>
+  String -> W.Options -> a -> Api c ByteStringResponse
 rawPost url opts postData = Api $ do
   sess <- asks fst
   lift $ post sess opts url postData
@@ -143,53 +140,34 @@ rawPost url opts postData = Api $ do
     post = usingOptionalSession W.postWith S.postWith
 
 
-postHelper ::
-  (ApiConfig c, W.Postable a)
-  => UrlParts
-  -> a
-  -> W.Options
-  -> Api c ByteStringResponse
+postHelper :: (ApiConfig c, W.Postable a) =>
+  UrlParts -> a -> W.Options -> Api c ByteStringResponse
 postHelper parts postData opts  = do
   c <- readConfig
   let url = makeUrl (baseUrl c) parts
   rawPost url (defaultJsonContent opts) postData
 
 
-postWith ::
-  (ApiConfig c, W.Postable a)
-  => W.Options
-  -> UrlParts
-  -> a
-  -> Api c ByteStringResponse
+postWith :: (ApiConfig c, W.Postable a) =>
+  W.Options -> UrlParts -> a -> Api c ByteStringResponse
 postWith opts parts postData =
   addAuthHeader opts >>= postHelper parts postData
 
-post ::
-  (ApiConfig c, W.Postable a)
-  => UrlParts
-  -> a
-  -> Api c ByteStringResponse
+post :: (ApiConfig c, W.Postable a) =>
+  UrlParts -> a -> Api c ByteStringResponse
 post = postWith W.defaults
 
 
-rawPut ::
-  (ApiConfig c, W.Putable a)
-  => String
-  -> W.Options
-  -> a
-  -> Api c ByteStringResponse
+rawPut :: (ApiConfig c, W.Putable a) =>
+  String -> W.Options -> a -> Api c ByteStringResponse
 rawPut url opts putData = Api $ do
   sess <- asks fst
   lift $ put sess opts url putData
   where
     put = usingOptionalSession W.putWith S.putWith
 
-putHelper ::
-  (ApiConfig c, W.Putable a)
-  => UrlParts
-  -> a
-  -> W.Options
-  -> Api c ByteStringResponse
+putHelper :: (ApiConfig c, W.Putable a) =>
+  UrlParts -> a -> W.Options -> Api c ByteStringResponse
 putHelper parts postData opts  = do
   c <- readConfig
   let url = makeUrl (baseUrl c) parts
