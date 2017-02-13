@@ -25,6 +25,8 @@ executable gitmigrate
                      , aeson
                      , yaml
                      , process
+                     , filepath
+                     , directory
 
   other-modules:     Bitbucket
                    , Teamcity
