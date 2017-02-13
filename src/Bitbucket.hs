@@ -15,13 +15,13 @@ module Bitbucket
 
 import           GHC.Generics
 
-import           Control.Lens          (each, (&), (.~), (?~), (^.), (^..),
-                                        (^?), folded, filtered)
+import           Control.Lens          (each, filtered, folded, view, (&), (.~),
+                                        (?~), (^.), (^..), (^?))
 import           Control.Monad.Reader
 import           Data.Aeson            (FromJSON, object, (.=))
 import           Data.Aeson.Lens       (key, _Array, _String)
 import qualified Data.ByteString.Char8 as BS
-import           Data.Char             (toUpper, toLower)
+import           Data.Char             (toLower, toUpper)
 import qualified Data.Text             as T
 import qualified Network.Wreq          as W
 
@@ -143,8 +143,4 @@ createRepo slug = do
         clones = key "clone" . _Array
         name = key "name" . _String
         href = key "href" . _String
-        onlyssh = filterF $ \x -> x ^. name == "ssh"
-
-filterF pred f = traverse step
-  where step x | pred x = f x
-               | otherwise = pure x
+        onlyssh = folded . filtered ((== "ssh") . view name)
