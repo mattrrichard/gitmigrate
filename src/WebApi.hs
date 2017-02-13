@@ -15,14 +15,10 @@ module WebApi
   , readConfig
   , addAuthHeader
   , get
-  , getAnonymous
   , getWith
-  , getWithAnonymous
   , rawGet
   , post
-  , postAnonymous
   , postWith
-  , postWithAnonymous
   , rawPost
   , put
   , putWith
@@ -134,14 +130,6 @@ get :: ApiConfig c => UrlParts -> Api c ByteStringResponse
 get = getWith W.defaults
 
 
-getAnonymous :: ApiConfig c => UrlParts -> Api c ByteStringResponse
-getAnonymous = flip getHelper W.defaults
-
-
-getWithAnonymous :: ApiConfig c => W.Options -> UrlParts -> Api c ByteStringResponse
-getWithAnonymous = flip getHelper
-
-
 rawPost ::
   (ApiConfig c, W.Postable a)
   => String
@@ -176,17 +164,6 @@ postWith ::
 postWith opts parts postData =
   addAuthHeader opts >>= postHelper parts postData
 
-
-postWithAnonymous ::
-  (ApiConfig c, W.Postable a)
-  => W.Options
-  -> UrlParts
-  -> a
-  -> Api c ByteStringResponse
-postWithAnonymous opts parts postData =
-  postHelper parts postData opts
-
-
 post ::
   (ApiConfig c, W.Postable a)
   => UrlParts
@@ -194,13 +171,6 @@ post ::
   -> Api c ByteStringResponse
 post = postWith W.defaults
 
-
-postAnonymous ::
-  (ApiConfig c, W.Postable a)
-  => UrlParts
-  -> a
-  -> Api c ByteStringResponse
-postAnonymous = postWith W.defaults
 
 rawPut ::
   (ApiConfig c, W.Putable a)
