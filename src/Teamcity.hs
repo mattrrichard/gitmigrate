@@ -3,15 +3,17 @@
 
 module Teamcity where
 
-import           Control.Lens         ((&), (.~), (?~), (^.), (^..), (^?))
-import           Control.Monad        (forM)
-import           Data.Aeson           (FromJSON)
-import qualified Data.Aeson.Lens      as AL
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as T
+import           Control.Lens          ((&), (.~), (?~), (^.), (^..), (^?))
+import           Control.Monad         (forM)
+import           Data.Aeson            (FromJSON)
+import qualified Data.Aeson.Lens       as AL
+import qualified Data.ByteString       as B
+import qualified Data.ByteString.Char8 as BC (pack)
+import qualified Data.ByteString.Lazy  as BL
+import qualified Data.Text             as T
+import qualified Data.Text.Encoding    as T
 import           GHC.Generics
-import qualified Network.Wreq         as W
+import qualified Network.Wreq          as W
 import           WebApi
 
 data Config =
@@ -41,11 +43,19 @@ getVcsRoots = do
     ids = AL.key "id" . AL._String
 
 
+vcsRestUrl vcsId = ["vcs-roots", "id:" ++ vcsId, "properties", "url"]
+
 getVcsUrl :: String -> TeamCity T.Text
 getVcsUrl vcsId = do
-  resp <- getWith (W.defaults & acceptPlain) ["vcs-roots", "id:" ++ vcsId, "properties", "url"]
+  resp <- getWith (W.defaults & acceptPlain) (vcsRestUrl vcsId)
 
   return $ resp ^. W.responseBody & T.decodeUtf8 . BL.toStrict
+
+
+setVcsUrl :: String -> String -> TeamCity ()
+setVcsUrl vcsId url = do
+  putWith (W.defaults & contentPlain) (vcsRestUrl vcsId) (BC.pack url)
+  return ()
 
 
 getAll :: TeamCity [(T.Text, T.Text)]
