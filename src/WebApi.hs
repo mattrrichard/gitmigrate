@@ -3,6 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 module WebApi
   ( ApiConfig(..)
@@ -29,7 +31,8 @@ module WebApi
   , contentJson
   ) where
 
-import           Control.Lens          ((&), (.~), (?~), (^.), (^..), (^?))
+import           Control.Lens          (Lens', (&), (.~), (?~), (^.), (^..),
+                                        (^?))
 import           Control.Monad.Reader
 import           Data.Aeson            (ToJSON (..))
 import qualified Data.Aeson.Lens       as AL
@@ -39,6 +42,7 @@ import           Data.List             (intersperse)
 import           GHC.Generics
 import qualified Network.Wreq          as W
 import qualified Network.Wreq.Session  as S
+import qualified Network.Wreq.Types    as W (Postable, Putable)
 
 
 class ApiConfig c where
@@ -58,13 +62,13 @@ instance Monad m => MonadReader c (ApiT c m) where
 type Api c = ApiT c IO
 
 
-runApiSession :: Api c a -> c -> IO a
-runApiSession a c = S.withSession $ \s ->
+runApiSession :: MonadIO m => Api c a -> c -> m a
+runApiSession a c = liftIO $ S.withSession $ \s ->
   runReaderT (runApi a) (Just s, c)
 
 
-runApiWithouSession :: Api c a -> c -> IO a
-runApiWithouSession a c = runReaderT (runApi a) (Nothing, c)
+runApiWithouSession :: MonadIO m => Api c a -> c -> m a
+runApiWithouSession a c = liftIO $ runReaderT (runApi a) (Nothing, c)
 
 
 readConfig :: Monad m => ApiT c m c
@@ -111,7 +115,7 @@ getWith opts parts =
   addAuthHeader opts >>= getHelper parts
 
 
-getHelper :: ApiConfig c => UrlParts -> W.Options -> Api c (ByteStringResponse)
+getHelper :: ApiConfig c => UrlParts -> W.Options -> Api c ByteStringResponse
 getHelper parts opts = do
   c <- readConfig
   let url = makeUrl (baseUrl c) parts
@@ -126,7 +130,7 @@ rawGet url opts = Api $ do
     get = usingOptionalSession W.getWith S.getWith
 
 
-get :: ApiConfig c => UrlParts -> Api c (ByteStringResponse)
+get :: ApiConfig c => UrlParts -> Api c ByteStringResponse
 get = getWith W.defaults
 
 
@@ -139,63 +143,63 @@ getWithAnonymous = flip getHelper
 
 
 rawPost ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => String
   -> W.Options
   -> a
   -> Api c ByteStringResponse
 rawPost url opts postData = Api $ do
   sess <- asks fst
-  lift $ post sess opts url (toJSON postData)
+  lift $ post sess opts url postData
   where
     post = usingOptionalSession W.postWith S.postWith
 
 
 postHelper ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => UrlParts
   -> a
   -> W.Options
-  -> Api c (ByteStringResponse)
+  -> Api c ByteStringResponse
 postHelper parts postData opts  = do
   c <- readConfig
   let url = makeUrl (baseUrl c) parts
-  rawPost url (contentJson opts) postData
+  rawPost url (defaultJsonContent opts) postData
 
 
 postWith ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => W.Options
   -> UrlParts
   -> a
-  -> Api c (ByteStringResponse)
+  -> Api c ByteStringResponse
 postWith opts parts postData =
   addAuthHeader opts >>= postHelper parts postData
 
 
 postWithAnonymous ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => W.Options
   -> UrlParts
   -> a
-  -> Api c (ByteStringResponse)
+  -> Api c ByteStringResponse
 postWithAnonymous opts parts postData =
   postHelper parts postData opts
 
 
 post ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => UrlParts
   -> a
-  -> Api c (ByteStringResponse)
+  -> Api c ByteStringResponse
 post = postWith W.defaults
 
 
 postAnonymous ::
-  (ApiConfig c, ToJSON a)
+  (ApiConfig c, W.Postable a)
   => UrlParts
   -> a
-  -> Api c (ByteStringResponse)
+  -> Api c ByteStringResponse
 postAnonymous = postWith W.defaults
 
 
